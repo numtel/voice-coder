@@ -33,6 +33,14 @@ Ask for a rewrite of the current line.
 
 Transcript is typed into the document
 
+> banana
+
+Last transcription was actually meant for Sam to do full rewrite
+
+> avocado
+
+Last transcription was actually meant for a line rewrite
+
 ### Undo/Redo
 
 Press F1 to undo your last voice command

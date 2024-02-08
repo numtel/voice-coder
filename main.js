@@ -6,6 +6,7 @@ if(!APIKEY) {
 let language = localStorage.getItem('LANGUAGE') || 'Javascript';
 let mediaRecorder;
 let audioChunks = [];
+let lastTranscription = '';
 const prevValue = [];
 const nextValue = [];
 
@@ -22,21 +23,40 @@ document.addEventListener('keydown', (event) => {
       startRecording();
     }
   } else if(event.key === 'F1') {
-    const cursorPosition = textarea.selectionStart;
-    if(prevValue.length === 0) return;
-    const prev = prevValue.pop();
-    nextValue.push(textarea.value);
-    textarea.value = prev;
-    textarea.selectionStart = cursorPosition;
+    undo();
   } else if(event.key === 'F2') {
-    const cursorPosition = textarea.selectionStart;
-    if(nextValue.length === 0) return;
-    const next = nextValue.pop();
-    prevValue.push(textarea.value);
-    textarea.value = next;
-    textarea.selectionStart = cursorPosition + next.length;
+    redo();
   }
 }, false);
+
+function undo() {
+  if(prevValue.length === 0) return;
+  const [prev, selPos] = prevValue.pop();
+  nextValue.push([textarea.value, textarea.selectionStart]);
+  textarea.value = prev;
+  textarea.selectionStart = selPos;
+}
+
+function redo() {
+  if(nextValue.length === 0) return;
+  const [next, selPos] = nextValue.pop();
+  prevValue.push([textarea.value, textarea.selectionStart]);
+  textarea.value = next;
+  textarea.selectionStart = selPos;
+}
+
+async function fullRewrite(prompt) {
+  setStatus('Asking about:' + prompt);
+  const result = await getCompletion(prompt, textarea.value);
+  textarea.value = result.choices[0].message.content;
+}
+
+async function lineRewrite(prompt) {
+  setStatus('Updating line:' + prompt);
+  const context = getCurrentLineString(textarea);
+  const result = await getCompletion(prompt, context);
+  replaceCurrentLine(textarea, result.choices[0].message.content);
+}
 
 function setStatus(value) {
   statusEl.innerHTML = value;
@@ -82,26 +102,28 @@ async function startRecording() {
         const parsed = await response.json();
         setStatus(parsed.text);
         // Save the current text for undo
-        prevValue.push(textarea.value);
+        prevValue.push([textarea.value, textarea.selectionStart]);
         // Clear redo cache
         nextValue.splice(0, nextValue.length);
         // Do things with the text
+        console.log(parsed.text);
         if(parsed.text.startsWith('Sam,')) {
           // Send it to out for a completion, if you're asking Sam (Altman)
           const prompt = parsed.text.slice(4);
-          setStatus('Asking about:' + prompt);
-          const result = await getCompletion(prompt, textarea.value);
-          textarea.value = result.choices[0].message.content;
+          await fullRewrite(prompt);
         } else if(parsed.text.toLowerCase().startsWith('on this line,')) {
           const prompt = parsed.text.slice(13);
-          setStatus('Updating line:' + prompt);
-          const context = getCurrentLineString(textarea);
-          const result = await getCompletion(prompt, context);
-          replaceCurrentLine(textarea, result.choices[0].message.content);
+          await lineRewrite(prompt);
         } else if(parsed.text.toLowerCase().startsWith('language')) {
           const prompt = parsed.text.slice(9);
           language = prompt;
           localStorage.setItem('LANGUAGE', prompt);
+        } else if(/^banana[\s\W]*$/i.test(parsed.text)) {
+          undo();
+          await fullRewrite(lastTranscription);
+        } else if(/^avocado[\s\W]*$/i.test(parsed.text)) {
+          undo();
+          await lineRewrite(lastTranscription);
         } else {
           // TODO be exhaustive
           let codeish = parsed.text
@@ -120,6 +142,7 @@ async function startRecording() {
           if(codeish.endsWith('.'))
             codeish = codeish.slice(0, -1);
 
+          lastTranscription = codeish;
           insertTextAtCursor(textarea, codeish);
         }
         setStatus(`Ready (${language})`);
