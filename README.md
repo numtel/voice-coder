@@ -1,5 +1,12 @@
 # voice-coder 
 
+> Look ma, no hands!
+
+*Turn on the sound*
+
+https://github.com/numtel/voice-coder/assets/518698/073ac4ff-8110-4249-9c14-c2c8efb91512
+
+
 ## Installation
 
 Will ask for your OpenAI API Key on first launch. (Saved in localStorage)
