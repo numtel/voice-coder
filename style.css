@@ -2,12 +2,30 @@
   box-sizing: border-box;
 }
 
+body {
+  --my-bg: #fff;
+  --my-text: #000;
+}
+
+@media (prefers-color-scheme: dark) {
+  html {
+    color-scheme: dark;
+  }
+
+  body {
+    --my-bg: #000;
+    --my-text: #fff;
+  }
+}
+
+
 #status {
   position: absolute;
   background: red;
   padding: 8px;
   bottom: 5px;
   right: 5px;
+  border-radius: 8px;
 }
 
 #text {
@@ -16,4 +34,6 @@
   left:0;
   height: 100%;
   width: 100%;
+  background: var(--my-bg);
+  color: var(--my-text);
 }
