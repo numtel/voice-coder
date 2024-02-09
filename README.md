@@ -30,7 +30,7 @@ Set programming language
 
 > Sam, write a function that calculates the fibonacci sequence.
 
-Ask same for a rewrite of your entire document.
+Ask same for a rewrite of your entire document or rewrite selection if there is one.
 
 > On this line, multiply the sequence variable times 3.
 

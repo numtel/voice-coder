@@ -51,6 +51,16 @@ async function fullRewrite(prompt) {
   textarea.value = result.choices[0].message.content;
 }
 
+async function selectionRewrite(prompt) {
+  setStatus('Updating selection:' + prompt);
+  const context = textarea.value.substring(
+    textarea.selectionStart,
+    textarea.selectionEnd
+  );
+  const result = await getCompletion(prompt, context);
+  replaceSelectedText(textarea, result.choices[0].message.content);
+}
+
 async function lineRewrite(prompt) {
   setStatus('Updating line:' + prompt);
   const context = getCurrentLineString(textarea);
@@ -110,7 +120,11 @@ async function startRecording() {
         if(parsed.text.startsWith('Sam,')) {
           // Send it to out for a completion, if you're asking Sam (Altman)
           const prompt = parsed.text.slice(4);
-          await fullRewrite(prompt);
+          if(textarea.selectionStart !== textarea.selectionEnd) {
+            await selectionRewrite(prompt);
+          } else {
+            await fullRewrite(prompt);
+          }
         } else if(parsed.text.toLowerCase().startsWith('on this line,')) {
           const prompt = parsed.text.slice(13);
           await lineRewrite(prompt);
@@ -125,7 +139,6 @@ async function startRecording() {
           undo();
           await lineRewrite(lastTranscription);
         } else {
-          // TODO be exhaustive
           let codeish = parsed.text
             .replace(/times/gi, '*')
             .replace(/divided by/gi, '/')
@@ -138,7 +151,18 @@ async function startRecording() {
             .replace(/open parenthesis/gi, '(')
             .replace(/close parenthesis/gi, ')')
             .replace(/semicolon/gi, ';')
-            .replace(/new line/gi, '\n');
+            .replace(/new line/gi, '\n')
+            .replace(/curly brackets/gi, '{}')
+            .replace(/square brackets/gi, '[]')
+            .replace(/less than/gi, '<')
+            .replace(/greater than/gi, '>')
+            .replace(/greater than or equal/gi, '>=')
+            .replace(/less than or equal/gi, '<=')
+            .replace(/comma/gi, ',')
+            .replace(/double quotes/gi, '"')
+            .replace(/single quote/gi, "'")
+            .replace(/backtick/gi, "`")
+            .replace(/vertical bar/gi, '|');
           if(codeish.endsWith('.'))
             codeish = codeish.slice(0, -1);
 
@@ -250,3 +274,10 @@ function getCurrentLineString(textarea) {
   return currentLineText;
 }
 
+// More from ChatGPT
+function replaceSelectedText(textArea, newText) {
+    let startPos = textArea.selectionStart;
+    let endPos = textArea.selectionEnd;
+
+    textArea.value = textArea.value.substring(0, startPos) + newText + textArea.value.substring(endPos);
+}
