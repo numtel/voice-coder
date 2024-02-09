@@ -1,3 +1,10 @@
+/*
+ _____  __   _  _  ____  __    ____    ____  ____  __       __  __ _  _  ____
+(  __  )(  ) / )(  _ \(  )  (  _ \  / ___)(  __)(  )     (  \/  ( \/ )(  __)
+ ) _) \ )( () \/ ( ) __// (_/\ )   /  \___ \ _)  )(__    /    \  )  (  ) _)
+(____/  \____/\_)(_)\_)(____/(_) (__)(____/(____)(____\  \_)__) (__/\_)(____)
+*/
+// ASCII art by ChatGPT.
 let APIKEY = localStorage.getItem('OPENAI_API_KEY');
 if(!APIKEY) {
   APIKEY = prompt('OpenAI API Key?');
@@ -10,7 +17,6 @@ let lastTranscription = '';
 const prevValue = [];
 const nextValue = [];
 
-const statusEl = document.getElementById('status');
 const textarea = document.getElementById('text');
 
 document.addEventListener('keydown', (event) => {
@@ -34,7 +40,7 @@ function undo() {
   const [prev, selPos] = prevValue.pop();
   nextValue.push([textarea.value, textarea.selectionStart]);
   textarea.value = prev;
-  textarea.selectionStart = selPos;
+  textarea.selectionStart = textarea.selectionEnd = selPos;
 }
 
 function redo() {
@@ -42,7 +48,7 @@ function redo() {
   const [next, selPos] = nextValue.pop();
   prevValue.push([textarea.value, textarea.selectionStart]);
   textarea.value = next;
-  textarea.selectionStart = selPos;
+  textarea.selectionStart = textarea.selectionEnd = selPos;
 }
 
 async function fullRewrite(prompt) {
@@ -69,6 +75,7 @@ async function lineRewrite(prompt) {
 }
 
 function setStatus(value) {
+  const statusEl = document.getElementById('status');
   statusEl.innerHTML = value;
 }
 setStatus(`Ready (${language})`);
@@ -159,6 +166,7 @@ async function startRecording() {
             .replace(/greater than or equal/gi, '>=')
             .replace(/less than or equal/gi, '<=')
             .replace(/comma/gi, ',')
+            .replace(/dot/gi, '.')
             .replace(/double quotes/gi, '"')
             .replace(/single quote/gi, "'")
             .replace(/backtick/gi, "`")
@@ -280,4 +288,45 @@ function replaceSelectedText(textArea, newText) {
     let endPos = textArea.selectionEnd;
 
     textArea.value = textArea.value.substring(0, startPos) + newText + textArea.value.substring(endPos);
+}
+
+function loadFile() {
+    const filename = document.getElementById('filename').value;
+    fetch(`/file/${filename}`)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('File not found');
+            }
+            return response.text();
+        })
+        .then(data => {
+            document.getElementById('text').value = data;
+        })
+        .catch(error => {
+            setStatus(error.message);
+        });
+}
+
+function saveFile() {
+    const filename = document.getElementById('filename').value;
+    const content = document.getElementById('text').value;
+    fetch(`/file/${filename}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'text/plain',
+        },
+        body: content
+    })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Failed to save file');
+            }
+            return response.text();
+        })
+        .then(data => {
+            setStatus(data);
+        })
+        .catch(error => {
+            setStatus(error.message);
+        });
 }

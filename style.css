@@ -30,9 +30,9 @@ body {
 
 #text {
   position: absolute;
-  top:0;
+  top:40px;
   left:0;
-  height: 100%;
+  height: calc(100% - 40px);
   width: 100%;
   background: var(--my-bg);
   color: var(--my-text);

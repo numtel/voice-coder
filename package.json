@@ -1,0 +1,12 @@
+{
+  "name": "voice-coder",
+  "version": "1.0.0",
+  "description": "Browser-based voice programming text editor",
+  "main": "main.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node server.js"
+  },
+  "author": "numtel <ben@latenightsketches.com>",
+  "license": "MIT"
+}
