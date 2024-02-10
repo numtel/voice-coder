@@ -1,12 +1,11 @@
 * {
   box-sizing: border-box;
 }
-
 body {
   --my-bg: #fff;
   --my-text: #000;
+  overflow: hidden;
 }
-
 @media (prefers-color-scheme: dark) {
   html {
     color-scheme: dark;

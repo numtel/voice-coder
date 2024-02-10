@@ -191,6 +191,10 @@ async function startRecording2 () {
                     await lineRewrite(prompt);
                 } else if(parsed.text.toLowerCase().startsWith('select inside curly')) {
                     selectInsideBrackets(textarea, ['{','}']);
+} else if(parsed.text.toLowerCase().match(/^(up|down) (\d+) lines/)) {
+    const direction = parsed.text.toLowerCase().match(/^(up|down) (\d+) lines/)[1];
+    const linesToMove = parseInt(parsed.text.toLowerCase().match(/^(up|down) (\d+) lines/)[2]);
+    moveCursor(textarea, direction, linesToMove);
                 } else if(parsed.text.toLowerCase().startsWith('language')) {
                     const prompt = parsed.text.slice(9);
                     language = prompt;
@@ -432,4 +436,32 @@ function saveFile() {
         .catch(error => {
             setStatus(error.message);
         });
+}
+function moveCursor(textarea, direction, lines) {
+  var currentPosition = textarea.selectionStart;
+  var newPosition;
+
+  if (direction === 'up') {
+    newPosition = currentPosition;
+    for (var i = 0; i < lines; i++) {
+      newPosition = textarea.value.lastIndexOf('\n', newPosition - 1);
+      if (newPosition === -1) {
+        break;
+      }
+    }
+  } else if (direction === 'down') {
+    newPosition = currentPosition;
+    for (var i = 0; i < lines; i++) {
+      newPosition = textarea.value.indexOf('\n', newPosition + 1);
+      if (newPosition === -1) {
+        break;
+      }
+    }
+  }
+  
+  if (newPosition !== -1) {
+    textarea.selectionStart = newPosition + 1;
+    textarea.selectionEnd = newPosition + 1;
+    textarea.focus();
+  }
 }

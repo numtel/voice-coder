@@ -36,6 +36,10 @@ Ask same for a rewrite of your entire document or rewrite selection if there is 
 
 Ask for a rewrite of the current line.
 
+> Down 12 lines. Up 7 lines.
+
+Up/down a number of lines. Some numbers cause non digit character responses. Avoid those.
+
 > Select inside curly
 
 Selects the text inside the closest curly `{}` braces, can then ask Sam to rewrite that selection
