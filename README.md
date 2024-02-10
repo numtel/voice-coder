@@ -36,6 +36,10 @@ Ask same for a rewrite of your entire document or rewrite selection if there is 
 
 Ask for a rewrite of the current line.
 
+> Select inside curly
+
+Selects the text inside the closest curly `{}` braces, can then ask Sam to rewrite that selection
+
 > Anything else
 
 Transcript is typed into the document

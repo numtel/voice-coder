@@ -42,6 +42,11 @@ const server = http.createServer((req, res) => {
   if (pathname.startsWith('/file/')) {
     const filename = pathname.replace('/file/', '');
     const filePath = path.join(__dirname, filename);
+    if(!filePath.startsWith(__dirname)) {
+      res.statusCode = 403;
+      res.end('Forbidden');
+      return;
+    }
 
     // Handle GET request to load file content
     if (req.method === 'GET') {

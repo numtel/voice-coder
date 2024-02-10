@@ -16,24 +16,27 @@ let audioChunks = [];
 let lastTranscription = '';
 const prevValue = [];
 const nextValue = [];
+const volumeThreshold = 0.02;
+const silenceDuration = 1500;
+let pauseRecording = true;
 
 const textarea = document.getElementById('text');
+const soundlevel = document.getElementById('soundlevel');
 
-document.addEventListener('keydown', (event) => {
-  if(event.key === 'Escape') {
-    if(mediaRecorder) {
-      setStatus('Transcribing... (Escape again to finish)');
-      mediaRecorder.stop();
+document.addEventListener('keydown', (event) => {if(event.key === 'Escape') {
+  pauseRecording = !pauseRecording;
+    if(pauseRecording) {
+      setStatus('Press Escape to turn on recordings');
     } else {
-      setStatus('Recording...');
-      startRecording();
+      setStatus('Awaiting sound threshold... (press escape to exit)');
     }
   } else if(event.key === 'F1') {
     undo();
   } else if(event.key === 'F2') {
     redo();
-  }
-}, false);
+  } else if(event.key === 'ArrowUp') {
+console.log("This application is written by voice at a high level.");
+  }}, false);
 
 function undo() {
   if(prevValue.length === 0) return;
@@ -78,116 +81,181 @@ function setStatus(value) {
   const statusEl = document.getElementById('status');
   statusEl.innerHTML = value;
 }
-setStatus(`Ready (${language})`);
+setStatus(`Press Escape to Begin Recording (${language})`);
+
+async function startRecording2 () {
+    try {
+        // Request microphone access
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+        const audioContext = new AudioContext();
+        const source = audioContext.createMediaStreamSource(stream);
+        const processor = audioContext.createScriptProcessor(512, 1, 1);
+
+        source.connect(processor);
+        processor.connect(audioContext.destination);
+
+        let recording = false;
+        let silenceStart = 0;
+        let recordedChunks = [];
+        mediaRecorder = new MediaRecorder(stream);
+
+        processor.onaudioprocess = function(event) {
+            const input = event.inputBuffer.getChannelData(0);
+            let sum = 0.0;
+            for (let i = 0; i < input.length; ++i) {
+                sum += input[i] * input[i];
+            }
+            let volume = Math.sqrt(sum / input.length);
+            soundlevel.value = volume;
+
+            if(pauseRecording) return;
+
+            if (volume > volumeThreshold && !recording) { // Threshold: adjust based on testing
+                recording = true;
+                recordedChunks = [];
+                mediaRecorder.start();
+                setStatus('Recording started');
+            } else if (volume <= volumeThreshold && recording) {
+                if (silenceStart === 0) silenceStart = new Date().getTime();
+                else if ((new Date().getTime() - silenceStart) > silenceDuration) { // 3 seconds of silence
+                    mediaRecorder.stop();
+                    recording = false;
+                    setStatus('Recording stopped');
+                    silenceStart = 0;
+                }
+            } else if (volume > volumeThreshold && recording) {
+                silenceStart = 0; // reset silence timer
+            }
+        };
+
+        mediaRecorder.ondataavailable = function(event) {
+            if (event.data.size > 0) {
+                recordedChunks.push(event.data);
+            }
+        };
+
+        mediaRecorder.onstop = async function() {
+            const audioBlob = new Blob(recordedChunks, { 'type' : 'audio/wav' });
+            // Here you can save the blob to a file or upload it to a server, etc.
+            console.log('Recording saved', audioBlob);
+            setStatus('Transcribing...');
+                const audioUrl = URL.createObjectURL(audioBlob);
+                const formData = new FormData();
+                formData.append("file", audioBlob);
+                formData.append("model", "whisper-1");
+
+                let response;
+                try {
+                    response = await fetch(
+                        'https://api.openai.com/v1/audio/transcriptions',
+                        {
+                            method: 'POST',
+                            headers: {
+                                Authorization: `Bearer ${APIKEY}`,
+                            },
+                            body: formData
+                        }
+                    );
+                } catch(error) {
+                    console.error(error);
+                    setStatus('Transcription Error!');
+                }
+
+                const parsed = await response.json();
+                setStatus(parsed.text);
+                // Save the current text for undo
+                prevValue.push([textarea.value, textarea.selectionStart]);
+                // Clear redo cacheThis is a test
+                nextValue.splice(0, nextValue.length);
+                // Do things with the text
+                console.log(parsed.text);
+                if(parsed.text.startsWith('Sam,')) {
+                    // Send it to out for a completion, if you're asking Sam (Altman)
+                    const prompt = parsed.text.slice(4);
+                    if(textarea.selectionStart !== textarea.selectionEnd) {
+                        await selectionRewrite(prompt);
+                    } else {
+                        await fullRewrite(prompt);
+                    }
+                } else if(parsed.text.toLowerCase().startsWith('on this line,')) {
+                    const prompt = parsed.text.slice(13);
+                    await lineRewrite(prompt);
+                } else if(parsed.text.toLowerCase().startsWith('select inside curly')) {
+                    selectInsideBrackets(textarea, ['{','}']);
+                } else if(parsed.text.toLowerCase().startsWith('language')) {
+                    const prompt = parsed.text.slice(9);
+                    language = prompt;
+                    localStorage.setItem('LANGUAGE', prompt);
+                } else if(/^banana[\s\W]*$/i.test(parsed.text)) {
+                    undo();
+                    await fullRewrite(lastTranscription);
+                } else if(/^avocado[\s\W]*$/i.test(parsed.text)) {
+                    undo();
+                    await lineRewrite(lastTranscription);
+                } else {
+                    let codeish = parsed.text
+                        .replace(/times/gi, '*')
+                        .replace(/divided by/gi, '/')
+                        .replace(/plus/gi, '+')
+                        .replace(/minus/gi, '-')
+                        .replace(/equals/gi, '=')
+                        .replace(/strict equals/gi, '===')
+                        .replace(/strict not equals/gi, '!==')
+                        .replace(/not equals/gi, '!=')
+                        .replace(/open parenthesis/gi, '(')
+                        .replace(/close parenthesis/gi, ')')
+                        .replace(/semicolon/gi, ';')
+                        .replace(/new line/gi, '\n')
+                        .replace(/curly brackets/gi, '{}')
+                        .replace(/square brackets/gi, '[]')
+                        .replace(/less than/gi, '<')
+                        .replace(/greater than/gi, '>')
+                        .replace(/greater than or equal/gi, '>=')
+                        .replace(/less than or equal/gi, '<=')
+                        .replace(/comma/gi, ',')
+                        .replace(/dot/gi, '.')
+                        .replace(/double quotes/gi, '"')
+                        .replace(/single quote/gi, "'")
+                        .replace(/backtick/gi, "`")
+                        .replace(/vertical bar/gi, '|');
+                    if(codeish.endsWith('.'))
+                        codeish = codeish.slice(0, -1);
+
+                    lastTranscription = codeish;
+                    insertTextAtCursor(textarea, codeish);
+                }
+                setStatus(`Ready (${language})`);
+        };
+    } catch (error) {
+        console.error('Error accessing the microphone', error);
+    }
+}
+startRecording2();
+
+
 
 async function startRecording() {
-  if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      mediaRecorder = new MediaRecorder(stream);
-      mediaRecorder.onstart = () => {
-        audioChunks = [];
-      };
-      mediaRecorder.ondataavailable = event => {
-        audioChunks.push(event.data);
-      };
-      mediaRecorder.onstop = async () => {
-        const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
-        const audioUrl = URL.createObjectURL(audioBlob);
-        const formData = new FormData();
-        formData.append("file", audioBlob);
-        formData.append("model", "whisper-1");
-        mediaRecorder = null;
-
-        let response;
+    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
         try {
-          response = await fetch(
-            'https://api.openai.com/v1/audio/transcriptions',
-            {
-              method: 'POST',
-              headers: {
-                Authorization: `Bearer ${APIKEY}`,
-              },
-              body: formData
-            }
-          );
-        } catch(error) {
-          console.error(error);
-          setStatus('Transcription Error!');
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            mediaRecorder = new MediaRecorder(stream);
+            mediaRecorder.onstart = () => {
+                audioChunks = [];
+            };
+            mediaRecorder.ondataavailable = event => {
+                audioChunks.push(event.data);
+            };
+            mediaRecorder.onstop = async () => {
+                const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+            };
+            mediaRecorder.start();
+        } catch (error) {
+            console.error(error);
+            setStatus('Cannot access microphone!');
         }
-
-        const parsed = await response.json();
-        setStatus(parsed.text);
-        // Save the current text for undo
-        prevValue.push([textarea.value, textarea.selectionStart]);
-        // Clear redo cache
-        nextValue.splice(0, nextValue.length);
-        // Do things with the text
-        console.log(parsed.text);
-        if(parsed.text.startsWith('Sam,')) {
-          // Send it to out for a completion, if you're asking Sam (Altman)
-          const prompt = parsed.text.slice(4);
-          if(textarea.selectionStart !== textarea.selectionEnd) {
-            await selectionRewrite(prompt);
-          } else {
-            await fullRewrite(prompt);
-          }
-        } else if(parsed.text.toLowerCase().startsWith('on this line,')) {
-          const prompt = parsed.text.slice(13);
-          await lineRewrite(prompt);
-        } else if(parsed.text.toLowerCase().startsWith('language')) {
-          const prompt = parsed.text.slice(9);
-          language = prompt;
-          localStorage.setItem('LANGUAGE', prompt);
-        } else if(/^banana[\s\W]*$/i.test(parsed.text)) {
-          undo();
-          await fullRewrite(lastTranscription);
-        } else if(/^avocado[\s\W]*$/i.test(parsed.text)) {
-          undo();
-          await lineRewrite(lastTranscription);
-        } else {
-          let codeish = parsed.text
-            .replace(/times/gi, '*')
-            .replace(/divided by/gi, '/')
-            .replace(/plus/gi, '+')
-            .replace(/minus/gi, '-')
-            .replace(/equals/gi, '=')
-            .replace(/strict equals/gi, '===')
-            .replace(/strict not equals/gi, '!==')
-            .replace(/not equals/gi, '!=')
-            .replace(/open parenthesis/gi, '(')
-            .replace(/close parenthesis/gi, ')')
-            .replace(/semicolon/gi, ';')
-            .replace(/new line/gi, '\n')
-            .replace(/curly brackets/gi, '{}')
-            .replace(/square brackets/gi, '[]')
-            .replace(/less than/gi, '<')
-            .replace(/greater than/gi, '>')
-            .replace(/greater than or equal/gi, '>=')
-            .replace(/less than or equal/gi, '<=')
-            .replace(/comma/gi, ',')
-            .replace(/dot/gi, '.')
-            .replace(/double quotes/gi, '"')
-            .replace(/single quote/gi, "'")
-            .replace(/backtick/gi, "`")
-            .replace(/vertical bar/gi, '|');
-          if(codeish.endsWith('.'))
-            codeish = codeish.slice(0, -1);
-
-          lastTranscription = codeish;
-          insertTextAtCursor(textarea, codeish);
-        }
-        setStatus(`Ready (${language})`);
-
-      };
-      mediaRecorder.start();
-    } catch (error) {
-      console.error(error);
-      setStatus('Cannot access microphone!');
+    } else {
+        setStatus("Your browser does not support audio capture");
     }
-  } else {
-    setStatus("Your browser does not support audio capture");
-  }
 }
 
 async function getCompletion(prompt, context) {
@@ -280,6 +348,32 @@ function getCurrentLineString(textarea) {
                           : textarea.value.substring(startOfLine, endOfLine); // If there is a newline after cursor
 
   return currentLineText;
+}
+function selectInsideBrackets(textarea, bracketType) {
+  const text = textarea.value;
+  const start = text.lastIndexOf(bracketType[0], textarea.selectionStart);
+  let end = text.indexOf(bracketType[1], textarea.selectionEnd);
+
+  if (start !== -1 && end !== -1) {
+    let count = 1;
+    let i = start + 1;
+    
+    while (i < text.length && count !== 0) {
+      if (text[i] === bracketType[0]) {
+        count++;
+      } else if (text[i] === bracketType[1]) {
+        count--;
+        if (count === 0) {
+          end = i;
+        }
+      }
+      i++;
+    }
+
+    if (count === 0) {
+      textarea.setSelectionRange(start + 1, end);
+    }
+  }
 }
 
 // More from ChatGPT
