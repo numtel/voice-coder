@@ -198,8 +198,12 @@ const prefix = parsed.text.toLowerCase().includes('find previous') ? 'find previ
 const prompt = parsed.text.slice(parsed.text.toLowerCase().indexOf(prefix) + prefix.length).replace(/[^a-zA-Z0-9_-]/g, '').trim();
 console.log(direction, prompt);
             findNext(textarea, prompt, direction);
+        } else if(parsed.text.toLowerCase().startsWith('undo')) {
+            undo();undo();
         } else if(parsed.text.toLowerCase().startsWith('select inside curly')) {
             selectInsideBrackets(textarea, ['{','}']);
+        } else if(parsed.text.toLowerCase().startsWith('expand selection')) {
+            expandSelection(textarea);
         } else if(parsed.text.toLowerCase().match(/^(up|down) (\d+) lines/)) {
             const direction = parsed.text.toLowerCase().match(/^(up|down) (\d+) lines/)[1];
             const linesToMove = parseInt(parsed.text.toLowerCase().match(/^(up|down) (\d+) lines/)[2]);
@@ -498,4 +502,21 @@ function findNext(textarea, str, direction) {
         textarea.selectionStart = nextIndex;
         textarea.selectionEnd = nextIndex + str.length;
     }
+}
+
+function expandSelection(textarea) {
+  let { selectionStart, selectionEnd } = textarea;
+  
+  // Move selection start to the beginning of the current line
+  while (selectionStart > 0 && textarea.value[selectionStart - 1] !== '\n') {
+    selectionStart--;
+  }
+  
+  // Move selection end to the end of the current line
+  while (selectionEnd < textarea.value.length && textarea.value[selectionEnd] !== '\n') {
+    selectionEnd++;
+  }
+  
+  textarea.selectionStart = selectionStart;
+  textarea.selectionEnd = selectionEnd;
 }

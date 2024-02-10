@@ -48,6 +48,14 @@ Jump to the next instance of the search term
 
 Selects the text inside the closest curly `{}` braces, can then ask Sam to rewrite that selection
 
+> Expand selection
+
+Expand selection to be full lines, useful after 'select inside curly' to get a full function/if statement/etc
+
+> Undo
+
+Undo the last voice command
+
 > Anything else
 
 Transcript is typed into the document
