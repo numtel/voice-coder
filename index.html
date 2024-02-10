@@ -7,10 +7,12 @@
     <link rel="stylesheet" href="style.css" />
 </head>
 <body>
+    <button onclick="toggleRecording()">Toggle Recording</button>
+    <meter id="soundlevel" value="0" min="0" high="0.02" max="0.05"></meter>
+    <button onclick="setThreshold()">Set Threshold</button>
     <input type="text" id="filename" placeholder="Enter filename to load"/>
     <button onclick="loadFile()">Load</button>
     <button onclick="saveFile()">Save</button>
-    <meter id="soundlevel" value="0" min="0" max="0.3"></meter>
     <textarea id="text"></textarea><br/>
     <div id="status">Press Escape to begin.</div>
     <script src="main.js"></script>

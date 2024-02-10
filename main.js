@@ -16,20 +16,29 @@ let audioChunks = [];
 let lastTranscription = '';
 const prevValue = [];
 const nextValue = [];
-const volumeThreshold = 0.02;
+let volumeThreshold = 0.02;
+let volume = 0;
 const silenceDuration = 1500;
 let pauseRecording = true;
 
 const textarea = document.getElementById('text');
 const soundlevel = document.getElementById('soundlevel');
 
-document.addEventListener('keydown', (event) => {if(event.key === 'Escape') {
+function setThreshold() {
+  volumeThreshold = soundlevel.high = volume;
+}
+
+function toggleRecording() {
   pauseRecording = !pauseRecording;
     if(pauseRecording) {
       setStatus('Press Escape to turn on recordings');
     } else {
       setStatus('Awaiting sound threshold... (press escape to exit)');
     }
+}
+
+document.addEventListener('keydown', (event) => {if(event.key === 'Escape') {
+    toggleRecording();
   } else if(event.key === 'F1') {
     undo();
   } else if(event.key === 'F2') {
@@ -105,7 +114,7 @@ async function startRecording2 () {
             for (let i = 0; i < input.length; ++i) {
                 sum += input[i] * input[i];
             }
-            let volume = Math.sqrt(sum / input.length);
+            volume = Math.sqrt(sum / input.length);
             soundlevel.value = volume;
 
             if(pauseRecording) return;
