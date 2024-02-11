@@ -97,6 +97,94 @@ function setStatus(value) {
 }
 setStatus(`Press Escape to Begin Recording (${language})`);
 
+const commands = {
+  'sam': async (parsed) => {
+    // Send it to out for a completion, if you're asking Sam (Altman)
+    const prompt = parsed.text.slice(4);
+    if(textarea.selectionStart !== textarea.selectionEnd) {
+      await selectionRewrite(prompt);
+    } else {
+      await fullRewrite(prompt);
+    }
+  },
+  'on this line': async (parsed) => {
+    const prompt = parsed.text.slice(13);
+    await lineRewrite(prompt);
+  },
+  'find (next|previous)': async (parsed) => {
+    const direction = parsed.text.toLowerCase().includes('previous') ? 'backward' : 'forward';    
+    const prefix = parsed.text.toLowerCase().includes('find previous') ? 'find previous' : 'find next';
+    const prompt = parsed.text.slice(parsed.text.toLowerCase().indexOf(prefix) + prefix.length).replace(/[^a-zA-Z0-9_-]/g, '').trim();
+    console.log(direction, prompt);
+    findNext(textarea, prompt, direction);
+  },
+  'copy selection': async (parsed) => {
+    clipboard = textarea.value.substring(
+      textarea.selectionStart,
+      textarea.selectionEnd
+    );
+  },
+  'cut selection': async (parsed) => {
+    clipboard = textarea.value.substring(
+      textarea.selectionStart,
+      textarea.selectionEnd
+    );
+    deleteSelectedText(textarea);
+  },
+  'grapefruit': async (parsed) => {
+    insertOrReplaceText(textarea, clipboard);
+  },
+  'beginning of selection': async (parsed) => {
+    textarea.selectionEnd = textarea.selectionStart;
+  },
+  'end of selection': async (parsed) => {
+    textarea.selectionStart = textarea.selectionEnd;
+  },
+  'undo': async (parsed) => {
+    undo();undo();
+  },
+  'select inside curly': async (parsed) => {
+    selectInsideBrackets(textarea, ['{','}']);
+  },
+  'select inside parentheses': async (parsed) => {
+    selectInsideBrackets(textarea, ['(',')']);
+  },
+  'select inside single quotes': async (parsed) => {
+    selectInsideBrackets(textarea, ["'"]);
+  },
+  'select inside double quotes': async (parsed) => {
+    selectInsideBrackets(textarea, ['"']);
+  },
+  'select inside carrots': async (parsed) => {
+    selectInsideBrackets(textarea, ['<', '>']);
+  },
+  'expand selection': async (parsed) => {
+    expandSelection(textarea);
+  },
+  '(up|down) (\d+) lines': async (parsed) => {
+    const direction = parsed.text.toLowerCase().match(/^(up|down) (\d+) lines/)[1];
+    const linesToMove = parseInt(parsed.text.toLowerCase().match(/^(up|down) (\d+) lines/)[2]);
+    moveCursor(textarea, direction, linesToMove);
+  },
+  'language': async (parsed) => {
+    const prompt = parsed.text.slice(9);
+    language = prompt;
+    localStorage.setItem('LANGUAGE', prompt);
+  },
+  'banana': async (parsed) => {
+    undo();undo();
+    if(textarea.selectionStart !== textarea.selectionEnd) {
+      await selectionRewrite(lastTranscription);
+    } else {
+      await fullRewrite(lastTranscription);
+    }
+  },
+  'avocado': async (parsed) => {
+    undo();
+    await lineRewrite(lastTranscription);
+  },
+}
+
 startRecording(async function(audioBlob) {
   setStatus('Transcribing...');
 
@@ -124,82 +212,25 @@ startRecording(async function(audioBlob) {
 
   const parsed = await response.json();
   setStatus(parsed.text);
-  
+
   // Save the current text for undo
   prevValue.push([textarea.value, textarea.selectionStart, textarea.selectionEnd]);
   // Clear redo cache
   nextValue.splice(0, nextValue.length);
-  
+
   // Do things with the text
   console.log(parsed.text);
-  
-  if(parsed.text.startsWith('Sam,')) {
-    // Send it to out for a completion, if you're asking Sam (Altman)
-    const prompt = parsed.text.slice(4);
-    if(textarea.selectionStart !== textarea.selectionEnd) {
-      await selectionRewrite(prompt);
-    } else {
-      await fullRewrite(prompt);
+
+  const commandsStr = Object.keys(commands);
+  let wasCommand = false;
+  for(let i = 0; i < commandsStr.length; i++) {
+    if((new RegExp(`^${commandsStr[i]}`, 'i')).test(parsed.text)) {
+      wasCommand = true;
+      commands[commandsStr[i]](parsed);
     }
-  } else if(parsed.text.toLowerCase().startsWith('on this line')) {
-    const prompt = parsed.text.slice(13);
-    await lineRewrite(prompt);
-  } else if(parsed.text.match(/^find (next|previous)/i)) {
-    const direction = parsed.text.toLowerCase().includes('previous') ? 'backward' : 'forward';    
-    const prefix = parsed.text.toLowerCase().includes('find previous') ? 'find previous' : 'find next';
-    const prompt = parsed.text.slice(parsed.text.toLowerCase().indexOf(prefix) + prefix.length).replace(/[^a-zA-Z0-9_-]/g, '').trim();
-    console.log(direction, prompt);
-    findNext(textarea, prompt, direction);
-  } else if(parsed.text.toLowerCase().startsWith('copy selection')) {
-    clipboard = textarea.value.substring(
-      textarea.selectionStart,
-      textarea.selectionEnd
-    );
-  } else if(parsed.text.toLowerCase().startsWith('cut selection')) {
-    clipboard = textarea.value.substring(
-      textarea.selectionStart,
-      textarea.selectionEnd
-    );
-    deleteSelectedText(textarea);
-  } else if(parsed.text.toLowerCase().startsWith('grapefruit')) {
-    insertOrReplaceText(textarea, clipboard);
-  } else if(parsed.text.toLowerCase().startsWith('beginning of selection')) {
-    textarea.selectionEnd = textarea.selectionStart;
-  } else if(parsed.text.toLowerCase().startsWith('end of selection')) {
-    textarea.selectionStart = textarea.selectionEnd;
-  } else if(parsed.text.toLowerCase().startsWith('undo')) {
-    undo();undo();
-  } else if(parsed.text.toLowerCase().startsWith('select inside curly')) {
-    selectInsideBrackets(textarea, ['{','}']);
-  } else if(parsed.text.toLowerCase().startsWith('select inside parentheses')) {
-    selectInsideBrackets(textarea, ['(',')']);
-  } else if(parsed.text.toLowerCase().startsWith('select inside single quotes')) {
-    selectInsideBrackets(textarea, ["'"]);
-  } else if(parsed.text.toLowerCase().startsWith('select inside double quotes')) {
-    selectInsideBrackets(textarea, ['"']);
-  } else if(parsed.text.toLowerCase().startsWith('select inside carrots')) {
-    selectInsideBrackets(textarea, ['<', '>']);
-  } else if(parsed.text.toLowerCase().startsWith('expand selection')) {
-    expandSelection(textarea);
-  } else if(parsed.text.toLowerCase().match(/^(up|down) (\d+) lines/)) {
-    const direction = parsed.text.toLowerCase().match(/^(up|down) (\d+) lines/)[1];
-    const linesToMove = parseInt(parsed.text.toLowerCase().match(/^(up|down) (\d+) lines/)[2]);
-    moveCursor(textarea, direction, linesToMove);
-  } else if(parsed.text.toLowerCase().startsWith('language')) {
-    const prompt = parsed.text.slice(9);
-    language = prompt;
-    localStorage.setItem('LANGUAGE', prompt);
-  } else if(/^banana[\s\W]*$/i.test(parsed.text)) {
-    undo();undo();
-    if(textarea.selectionStart !== textarea.selectionEnd) {
-      await selectionRewrite(lastTranscription);
-    } else {
-      await fullRewrite(lastTranscription);
-    }
-  } else if(/^avocado[\s\W]*$/i.test(parsed.text)) {
-    undo();
-    await lineRewrite(lastTranscription);
-  } else {
+  }
+
+  if(!wasCommand) {
     let codeish = parsed.text
       .replace(/times/gi, '*')
       .replace(/divided by/gi, '/')
@@ -225,14 +256,14 @@ startRecording(async function(audioBlob) {
       .replace(/single quote/gi, "'")
       .replace(/backtick/gi, "`")
       .replace(/vertical bar/gi, '|');
-      
+
     if(codeish.endsWith('.'))
       codeish = codeish.slice(0, -1);
 
     lastTranscription = codeish;
     insertTextAtCursor(textarea, codeish);
   }
-  
+
   setStatus(pauseRecording ? 'Press Escape to continue recording' : `Ready (${language})`);
 });
 
