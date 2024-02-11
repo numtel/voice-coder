@@ -29,23 +29,25 @@ function setThreshold() {
 }
 
 function toggleRecording() {
-  pauseRecording = !pauseRecording;
+    pauseRecording = !pauseRecording;
     if(pauseRecording) {
-      setStatus('Press Escape to turn on recordings');
+        setStatus('Press Escape to turn on recordings');
     } else {
-      setStatus('Awaiting sound threshold... (press escape to exit)');
+        setStatus('Awaiting sound threshold... (press escape to exit)');
     }
 }
 
-document.addEventListener('keydown', (event) => {if(event.key === 'Escape') {
+document.addEventListener('keydown', (event) => {
+  if(event.key === 'Escape') {
     toggleRecording();
   } else if(event.key === 'F1') {
     undo();
   } else if(event.key === 'F2') {
     redo();
   } else if(event.key === 'ArrowUp') {
-console.log("This application is written by voice at a high level.");
-  }}, false);
+    console.log("This application is written by voice at a high level.");
+  }
+}, false);
 
 function undo() {
   if(prevValue.length === 0) return;
@@ -95,116 +97,116 @@ function setStatus(value) {
 setStatus(`Press Escape to Begin Recording (${language})`);
 
 startRecording(async function(audioBlob) {
-        setStatus('Transcribing...');
+  setStatus('Transcribing...');
 
-        const audioUrl = URL.createObjectURL(audioBlob);
-        const formData = new FormData();
-        formData.append("file", audioBlob);
-        formData.append("model", "whisper-1");
+  const audioUrl = URL.createObjectURL(audioBlob);
+  const formData = new FormData();
+  formData.append("file", audioBlob);
+  formData.append("model", "whisper-1");
 
-        let response;
-        try {
-            response = await fetch(
-                'https://api.openai.com/v1/audio/transcriptions',
-                {
-                    method: 'POST',
-                    headers: {
-                        Authorization: `Bearer ${APIKEY}`,
-                    },
-                    body: formData
-                }
-            );
-        } catch(error) {
-            console.error(error);
-            setStatus('Transcription Error!');
-        }
+  let response;
+  try {
+    response = await fetch(
+      'https://api.openai.com/v1/audio/transcriptions',
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${APIKEY}`,
+        },
+        body: formData
+      }
+    );
+  } catch(error) {
+    console.error(error);
+    setStatus('Transcription Error!');
+  }
 
-        const parsed = await response.json();
-        setStatus(parsed.text);
-        
-        // Save the current text for undo
-        prevValue.push([textarea.value, textarea.selectionStart, textarea.selectionEnd]);
-        // Clear redo cache
-        nextValue.splice(0, nextValue.length);
-        
-        // Do things with the text
-        console.log(parsed.text);
-        
-        if(parsed.text.startsWith('Sam,')) {
-            // Send it to out for a completion, if you're asking Sam (Altman)
-            const prompt = parsed.text.slice(4);
-            if(textarea.selectionStart !== textarea.selectionEnd) {
-                await selectionRewrite(prompt);
-            } else {
-                await fullRewrite(prompt);
-            }
-        } else if(parsed.text.toLowerCase().startsWith('on this line,')) {
-            const prompt = parsed.text.slice(13);
-            await lineRewrite(prompt);
-     } else if(parsed.text.match(/^find (next|previous)/i)) {
-const direction = parsed.text.toLowerCase().includes('previous') ? 'backward' : 'forward';    
-const prefix = parsed.text.toLowerCase().includes('find previous') ? 'find previous' : 'find next';
-const prompt = parsed.text.slice(parsed.text.toLowerCase().indexOf(prefix) + prefix.length).replace(/[^a-zA-Z0-9_-]/g, '').trim();
-console.log(direction, prompt);
-            findNext(textarea, prompt, direction);
-        } else if(parsed.text.toLowerCase().startsWith('undo')) {
-            undo();undo();
-        } else if(parsed.text.toLowerCase().startsWith('select inside curly')) {
-            selectInsideBrackets(textarea, ['{','}']);
-        } else if(parsed.text.toLowerCase().startsWith('expand selection')) {
-            expandSelection(textarea);
-        } else if(parsed.text.toLowerCase().match(/^(up|down) (\d+) lines/)) {
-            const direction = parsed.text.toLowerCase().match(/^(up|down) (\d+) lines/)[1];
-            const linesToMove = parseInt(parsed.text.toLowerCase().match(/^(up|down) (\d+) lines/)[2]);
-            moveCursor(textarea, direction, linesToMove);
-        } else if(parsed.text.toLowerCase().startsWith('language')) {
-            const prompt = parsed.text.slice(9);
-            language = prompt;
-            localStorage.setItem('LANGUAGE', prompt);
-        } else if(/^banana[\s\W]*$/i.test(parsed.text)) {
-            undo();undo();
-            if(textarea.selectionStart !== textarea.selectionEnd) {
-                await selectionRewrite(lastTranscription);
-            } else {
-                await fullRewrite(lastTranscription);
-            }
-        } else if(/^avocado[\s\W]*$/i.test(parsed.text)) {
-            undo();
-            await lineRewrite(lastTranscription);
-        } else {
-            let codeish = parsed.text
-                .replace(/times/gi, '*')
-                .replace(/divided by/gi, '/')
-                .replace(/plus/gi, '+')
-                .replace(/minus/gi, '-')
-                .replace(/equals/gi, '=')
-                .replace(/strict equals/gi, '===')
-                .replace(/strict not equals/gi, '!==')
-                .replace(/not equals/gi, '!=')
-                .replace(/open parenthesis/gi, '(')
-                .replace(/close parenthesis/gi, ')')
-                .replace(/semicolon/gi, ';')
-                .replace(/new line/gi, '\n')
-                .replace(/curly brackets/gi, '{}')
-                .replace(/square brackets/gi, '[]')
-                .replace(/less than/gi, '<')
-                .replace(/greater than/gi, '>')
-                .replace(/greater than or equal/gi, '>=')
-                .replace(/less than or equal/gi, '<=')
-                .replace(/comma/gi, ',')
-                .replace(/dot/gi, '.')
-                .replace(/double quotes/gi, '"')
-                .replace(/single quote/gi, "'")
-                .replace(/backtick/gi, "`")
-                .replace(/vertical bar/gi, '|');
-                
-            if(codeish.endsWith('.'))
-                codeish = codeish.slice(0, -1);
+  const parsed = await response.json();
+  setStatus(parsed.text);
+  
+  // Save the current text for undo
+  prevValue.push([textarea.value, textarea.selectionStart, textarea.selectionEnd]);
+  // Clear redo cache
+  nextValue.splice(0, nextValue.length);
+  
+  // Do things with the text
+  console.log(parsed.text);
+  
+  if(parsed.text.startsWith('Sam,')) {
+    // Send it to out for a completion, if you're asking Sam (Altman)
+    const prompt = parsed.text.slice(4);
+    if(textarea.selectionStart !== textarea.selectionEnd) {
+      await selectionRewrite(prompt);
+    } else {
+      await fullRewrite(prompt);
+    }
+  } else if(parsed.text.toLowerCase().startsWith('on this line,')) {
+    const prompt = parsed.text.slice(13);
+    await lineRewrite(prompt);
+  } else if(parsed.text.match(/^find (next|previous)/i)) {
+    const direction = parsed.text.toLowerCase().includes('previous') ? 'backward' : 'forward';    
+    const prefix = parsed.text.toLowerCase().includes('find previous') ? 'find previous' : 'find next';
+    const prompt = parsed.text.slice(parsed.text.toLowerCase().indexOf(prefix) + prefix.length).replace(/[^a-zA-Z0-9_-]/g, '').trim();
+    console.log(direction, prompt);
+    findNext(textarea, prompt, direction);
+  } else if(parsed.text.toLowerCase().startsWith('undo')) {
+    undo();undo();
+  } else if(parsed.text.toLowerCase().startsWith('select inside curly')) {
+    selectInsideBrackets(textarea, ['{','}']);
+  } else if(parsed.text.toLowerCase().startsWith('expand selection')) {
+    expandSelection(textarea);
+  } else if(parsed.text.toLowerCase().match(/^(up|down) (\d+) lines/)) {
+    const direction = parsed.text.toLowerCase().match(/^(up|down) (\d+) lines/)[1];
+    const linesToMove = parseInt(parsed.text.toLowerCase().match(/^(up|down) (\d+) lines/)[2]);
+    moveCursor(textarea, direction, linesToMove);
+  } else if(parsed.text.toLowerCase().startsWith('language')) {
+    const prompt = parsed.text.slice(9);
+    language = prompt;
+    localStorage.setItem('LANGUAGE', prompt);
+  } else if(/^banana[\s\W]*$/i.test(parsed.text)) {
+    undo();undo();
+    if(textarea.selectionStart !== textarea.selectionEnd) {
+      await selectionRewrite(lastTranscription);
+    } else {
+      await fullRewrite(lastTranscription);
+    }
+  } else if(/^avocado[\s\W]*$/i.test(parsed.text)) {
+    undo();
+    await lineRewrite(lastTranscription);
+  } else {
+    let codeish = parsed.text
+      .replace(/times/gi, '*')
+      .replace(/divided by/gi, '/')
+      .replace(/plus/gi, '+')
+      .replace(/minus/gi, '-')
+      .replace(/equals/gi, '=')
+      .replace(/strict equals/gi, '===')
+      .replace(/strict not equals/gi, '!==')
+      .replace(/not equals/gi, '!=')
+      .replace(/open parenthesis/gi, '(')
+      .replace(/close parenthesis/gi, ')')
+      .replace(/semicolon/gi, ';')
+      .replace(/new line/gi, '\n')
+      .replace(/curly brackets/gi, '{}')
+      .replace(/square brackets/gi, '[]')
+      .replace(/less than/gi, '<')
+      .replace(/greater than/gi, '>')
+      .replace(/greater than or equal/gi, '>=')
+      .replace(/less than or equal/gi, '<=')
+      .replace(/comma/gi, ',')
+      .replace(/dot/gi, '.')
+      .replace(/double quotes/gi, '"')
+      .replace(/single quote/gi, "'")
+      .replace(/backtick/gi, "`")
+      .replace(/vertical bar/gi, '|');
+      
+    if(codeish.endsWith('.'))
+      codeish = codeish.slice(0, -1);
 
-            lastTranscription = codeish;
-            insertTextAtCursor(textarea, codeish);
-        }
-        
-        setStatus(`Ready (${language})`);
+    lastTranscription = codeish;
+    insertTextAtCursor(textarea, codeish);
+  }
+  
+  setStatus(pauseRecording ? 'Press Escape to continue recording' : `Ready (${language})`);
 });
 
