@@ -49,18 +49,20 @@ console.log("This application is written by voice at a high level.");
 
 function undo() {
   if(prevValue.length === 0) return;
-  const [prev, selPos] = prevValue.pop();
-  nextValue.push([textarea.value, textarea.selectionStart]);
+  const [prev, selPos, selEnd] = prevValue.pop();
+  nextValue.push([textarea.value, textarea.selectionStart, textarea.selectionEnd]);
   textarea.value = prev;
-  textarea.selectionStart = textarea.selectionEnd = selPos;
+  textarea.selectionStart = selPos;
+  textarea.selectionEnd = selEnd;
 }
 
 function redo() {
   if(nextValue.length === 0) return;
-  const [next, selPos] = nextValue.pop();
-  prevValue.push([textarea.value, textarea.selectionStart]);
+  const [next, selPos, selEnd] = nextValue.pop();
+  prevValue.push([textarea.value, textarea.selectionStart, textarea.selectionEnd]);
   textarea.value = next;
-  textarea.selectionStart = textarea.selectionEnd = selPos;
+  textarea.selectionStart = selPos;
+  textarea.selectionEnd = selEnd;
 }
 
 async function fullRewrite(prompt) {
@@ -92,62 +94,9 @@ function setStatus(value) {
 }
 setStatus(`Press Escape to Begin Recording (${language})`);
 
-async function startRecording2 () {try {
-    // Request microphone access
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
-    const audioContext = new AudioContext();
-    const source = audioContext.createMediaStreamSource(stream);
-    const processor = audioContext.createScriptProcessor(512, 1, 1);
-
-    source.connect(processor);
-    processor.connect(audioContext.destination);
-
-    let recording = false;
-    let silenceStart = 0;
-    let recordedChunks = [];
-    mediaRecorder = new MediaRecorder(stream);
-
-    processor.onaudioprocess = function(event) {
-        const input = event.inputBuffer.getChannelData(0);
-        let sum = 0.0;
-        for (let i = 0; i < input.length; ++i) {
-            sum += input[i] * input[i];
-        }
-        volume = Math.sqrt(sum / input.length);
-        soundlevel.value = volume;
-
-        if (pauseRecording) return;
-
-        if (volume > volumeThreshold && !recording) { // Threshold: adjust based on testing
-            recording = true;
-            recordedChunks = [];
-            mediaRecorder.start();
-            setStatus('Recording started');
-        } else if (volume <= volumeThreshold && recording) {
-            if (silenceStart === 0) silenceStart = new Date().getTime();
-            else if ((new Date().getTime() - silenceStart) > silenceDuration) { // 3 seconds of silence
-                mediaRecorder.stop();
-                recording = false;
-                setStatus('Recording stopped');
-                silenceStart = 0;
-            }
-        } else if (volume > volumeThreshold && recording) {
-            silenceStart = 0; // reset silence timer
-        }
-    };
-
-    mediaRecorder.ondataavailable = function(event) {
-        if (event.data.size > 0) {
-            recordedChunks.push(event.data);
-        }
-    };
-
-    mediaRecorder.onstop = async function() {
-        const audioBlob = new Blob(recordedChunks, { 'type' : 'audio/wav' });
-        // Here you can save the blob to a file or upload it to a server, etc.
-        console.log('Recording saved', audioBlob);
+startRecording(async function(audioBlob) {
         setStatus('Transcribing...');
-        
+
         const audioUrl = URL.createObjectURL(audioBlob);
         const formData = new FormData();
         formData.append("file", audioBlob);
@@ -174,7 +123,7 @@ async function startRecording2 () {try {
         setStatus(parsed.text);
         
         // Save the current text for undo
-        prevValue.push([textarea.value, textarea.selectionStart]);
+        prevValue.push([textarea.value, textarea.selectionStart, textarea.selectionEnd]);
         // Clear redo cache
         nextValue.splice(0, nextValue.length);
         
@@ -253,270 +202,5 @@ console.log(direction, prompt);
         }
         
         setStatus(`Ready (${language})`);
-    };
-} catch (error) {
-    console.error('Error accessing the microphone', error);
-}}
-startRecording2();
+});
 
-
-
-async function startRecording() {
-    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-        try {
-            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            mediaRecorder = new MediaRecorder(stream);
-            mediaRecorder.onstart = () => {
-                audioChunks = [];
-            };
-            mediaRecorder.ondataavailable = event => {
-                audioChunks.push(event.data);
-            };
-            mediaRecorder.onstop = async () => {
-                const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
-            };
-            mediaRecorder.start();
-        } catch (error) {
-            console.error(error);
-            setStatus('Cannot access microphone!');
-        }
-    } else {
-        setStatus("Your browser does not support audio capture");
-    }
-}
-
-async function getCompletion(prompt, context) {
-  const response = await fetch(
-    'https://api.openai.com/v1/chat/completions',
-    {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${APIKEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: "gpt-3.5-turbo-0125", // Faster + cheaper
-//         model: "gpt-4-0125-preview",
-        messages: [
-          {
-            "role": "system",
-            "content": `You are an expert ${language} programmer. Return only the source code specified without any extra markup. Do not wrap the code in backticks for markdown. Always return the entire source input with the changes.`
-          },
-          {
-            "role": "user",
-            "content": context,
-          },
-          {
-            "role": "user",
-            "content": prompt
-          }
-        ],
-      }),
-    }
-  );
-
-  const parsed = await response.json();
-  return parsed;
-}
-
-// Thanks ChatGPT
-function insertTextAtCursor(textarea, textToInsert) {
-    // Get current text and cursor position
-    const cursorPosition = textarea.selectionStart;
-    const textBeforeCursor = textarea.value.substring(0, cursorPosition);
-    const textAfterCursor = textarea.value.substring(cursorPosition);
-
-    // Insert the text at the cursor position
-    textarea.value = textBeforeCursor + textToInsert + textAfterCursor;
-
-    // Move the cursor to the end of the inserted text
-    textarea.selectionStart = textarea.selectionEnd = cursorPosition + textToInsert.length;
-
-    // Optionally, focus the textarea (useful if the insert is triggered by a button)
-    textarea.focus();
-}
-
-// More from ChatGPT
-function replaceCurrentLine(textarea, newLineText) {
-    // Get current cursor position
-    const cursorPos = textarea.selectionStart;
-
-    // Get the current content of the textarea
-    const text = textarea.value;
-
-    // Find the start of the current line
-    let lineStart = text.lastIndexOf('\n', cursorPos - 1) + 1;
-
-    // Find the end of the current line
-    let lineEnd = text.indexOf('\n', cursorPos);
-    if (lineEnd === -1) lineEnd = text.length;
-
-    // Replace the current line with newLineText
-    textarea.value = text.substring(0, lineStart) + newLineText + text.substring(lineEnd);
-
-    // Set cursor position to the end of the replaced line
-    const newPos = lineStart + newLineText.length;
-    textarea.selectionStart = textarea.selectionEnd = newPos;
-}
-
-// More from ChatGPT
-function getCurrentLineString(textarea) {
-  // Get cursor position
-  const cursorPos = textarea.selectionStart;
-  // Get text before cursor
-  const textBeforeCursor = textarea.value.substring(0, cursorPos);
-  // Find the start of the current line
-  const startOfLine = textBeforeCursor.lastIndexOf('\n') + 1;
-  // Find the end of the current line
-  const endOfLine = textarea.value.indexOf('\n', cursorPos);
-  // Extract the current line text
-  const currentLineText = endOfLine === -1
-                          ? textarea.value.substring(startOfLine) // If there's no newline after cursor
-                          : textarea.value.substring(startOfLine, endOfLine); // If there is a newline after cursor
-
-  return currentLineText;
-}
-function selectInsideBrackets(textarea, bracketType) {
-  const text = textarea.value;
-  const start = text.lastIndexOf(bracketType[0], textarea.selectionStart);
-  let end = text.indexOf(bracketType[1], textarea.selectionEnd);
-
-  if (start !== -1 && end !== -1) {
-    let count = 1;
-    let i = start + 1;
-    
-    while (i < text.length && count !== 0) {
-      if (text[i] === bracketType[0]) {
-        count++;
-      } else if (text[i] === bracketType[1]) {
-        count--;
-        if (count === 0) {
-          end = i;
-        }
-      }
-      i++;
-    }
-
-    if (count === 0) {
-      textarea.setSelectionRange(start + 1, end);
-    }
-  }
-}
-
-// More from ChatGPT
-function replaceSelectedText(textArea, newText) {
-    let startPos = textArea.selectionStart;
-    let endPos = textArea.selectionEnd;
-
-    textArea.value = textArea.value.substring(0, startPos) + newText + textArea.value.substring(endPos);
-}
-
-function loadFile() {
-    const filename = document.getElementById('filename').value;
-    fetch(`/file/${filename}`)
-        .then(response => {
-            if (!response.ok) {
-                throw new Error('File not found');
-            }
-            return response.text();
-        })
-        .then(data => {
-            document.getElementById('text').value = data;
-        })
-        .catch(error => {
-            setStatus(error.message);
-        });
-}
-
-function saveFile() {
-    const filename = document.getElementById('filename').value;
-    const content = document.getElementById('text').value;
-    fetch(`/file/${filename}`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'text/plain',
-        },
-        body: content
-    })
-        .then(response => {
-            if (!response.ok) {
-                throw new Error('Failed to save file');
-            }
-            return response.text();
-        })
-        .then(data => {
-            setStatus(data);
-        })
-        .catch(error => {
-            setStatus(error.message);
-        });
-}
-function moveCursor(textarea, direction, lines) {
-  var currentPosition = textarea.selectionStart;
-  var newPosition;
-
-  if (direction === 'up') {
-    newPosition = currentPosition;
-    for (var i = 0; i < lines; i++) {
-      newPosition = textarea.value.lastIndexOf('\n', newPosition - 1);
-      if (newPosition === -1) {
-        break;
-      }
-    }
-  } else if (direction === 'down') {
-    newPosition = currentPosition;
-    for (var i = 0; i < lines; i++) {
-      newPosition = textarea.value.indexOf('\n', newPosition + 1);
-      if (newPosition === -1) {
-        break;
-      }
-    }
-  }
-  
-  if (newPosition !== -1) {
-    textarea.selectionStart = newPosition + 1;
-    textarea.selectionEnd = newPosition + 1;
-    textarea.focus();
-  }
-}
-function findNext(textarea, str, direction) {
-    const text = textarea.value;
-    const startPos = textarea.selectionStart + (direction === 'forward' ? 1 : -1);
-    let nextIndex;
-    
-    if (direction === 'forward') {
-        nextIndex = text.toLowerCase().indexOf(str.toLowerCase(), startPos);
-    } else {
-        nextIndex = text.toLowerCase().lastIndexOf(str.toLowerCase(), startPos);
-    }
-
-    if (nextIndex === -1) {
-        if (direction === 'forward') {
-            nextIndex = text.toLowerCase().indexOf(str.toLowerCase(), 0);
-        } else {
-            nextIndex = text.toLowerCase().lastIndexOf(str.toLowerCase(), text.length);
-        }
-    }
-
-    if (nextIndex !== -1) {
-        textarea.selectionStart = nextIndex;
-        textarea.selectionEnd = nextIndex + str.length;
-    }
-}
-
-function expandSelection(textarea) {
-  let { selectionStart, selectionEnd } = textarea;
-  
-  // Move selection start to the beginning of the current line
-  while (selectionStart > 0 && textarea.value[selectionStart - 1] !== '\n') {
-    selectionStart--;
-  }
-  
-  // Move selection end to the end of the current line
-  while (selectionEnd < textarea.value.length && textarea.value[selectionEnd] !== '\n') {
-    selectionEnd++;
-  }
-  
-  textarea.selectionStart = selectionStart;
-  textarea.selectionEnd = selectionEnd;
-}

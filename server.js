@@ -7,16 +7,13 @@ const hostname = '127.0.0.1';
 const port = 3000;
 
 const allowed = {
-  '/': {
-    file: 'index.html',
-    mime: 'text/html',
-  },
-  '/main.js': {
-    mime: 'application/javascript',
-  },
-  '/style.css': {
-    mime: 'text/css',
-  },
+  '/': {file: 'index.html', mime: 'text/html'},
+  '/main.js': {mime: 'application/javascript'},
+  '/style.css': {mime: 'text/css'},
+  '/lib/textarea.js': {mime: 'application/javascript'},
+  '/lib/completion.js': {mime: 'application/javascript'},
+  '/lib/recorder.js': {mime: 'application/javascript'},
+  '/lib/fileserver.js': {mime: 'application/javascript'},
 };
 
 const server = http.createServer((req, res) => {
