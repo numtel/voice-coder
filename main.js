@@ -112,23 +112,17 @@ const commands = {
     await lineRewrite(prompt);
   },
   'find (next|previous)': async (parsed) => {
-    const direction = parsed.text.toLowerCase().includes('previous') ? 'backward' : 'forward';    
+    const direction = parsed.text.toLowerCase().includes('previous') ? 'backward' : 'forward';
     const prefix = parsed.text.toLowerCase().includes('find previous') ? 'find previous' : 'find next';
     const prompt = parsed.text.slice(parsed.text.toLowerCase().indexOf(prefix) + prefix.length).replace(/[^a-zA-Z0-9_-]/g, '').trim();
     console.log(direction, prompt);
     findNext(textarea, prompt, direction);
   },
   'copy selection': async (parsed) => {
-    clipboard = textarea.value.substring(
-      textarea.selectionStart,
-      textarea.selectionEnd
-    );
+    clipboard = textarea.value.substring(textarea.selectionStart, textarea.selectionEnd);
   },
   'cut selection': async (parsed) => {
-    clipboard = textarea.value.substring(
-      textarea.selectionStart,
-      textarea.selectionEnd
-    );
+    clipboard = textarea.value.substring(textarea.selectionStart, textarea.selectionEnd);
     deleteSelectedText(textarea);
   },
   'grapefruit': async (parsed) => {
@@ -185,6 +179,18 @@ const commands = {
   },
 }
 
+async function executeCommand(parsed) {
+  const commandsStr = Object.keys(commands);
+  let wasCommand = false;
+  for(let i = 0; i < commandsStr.length; i++) {
+    if((new RegExp(`^${commandsStr[i]}`, 'i')).test(parsed.text)) {
+      wasCommand = true;
+      await commands[commandsStr[i]](parsed);
+    }
+  }
+  return wasCommand;
+}
+
 startRecording(async function(audioBlob) {
   setStatus('Transcribing...');
 
@@ -220,48 +226,49 @@ startRecording(async function(audioBlob) {
 
   // Do things with the text
   console.log(parsed.text);
-
-  const commandsStr = Object.keys(commands);
-  let wasCommand = false;
-  for(let i = 0; i < commandsStr.length; i++) {
-    if((new RegExp(`^${commandsStr[i]}`, 'i')).test(parsed.text)) {
-      wasCommand = true;
-      commands[commandsStr[i]](parsed);
-    }
-  }
+  const wasCommand = await executeCommand(parsed);
 
   if(!wasCommand) {
-    let codeish = parsed.text
-      .replace(/times/gi, '*')
-      .replace(/divided by/gi, '/')
-      .replace(/plus/gi, '+')
-      .replace(/minus/gi, '-')
-      .replace(/equals/gi, '=')
-      .replace(/strict equals/gi, '===')
-      .replace(/strict not equals/gi, '!==')
-      .replace(/not equals/gi, '!=')
-      .replace(/open parenthesis/gi, '(')
-      .replace(/close parenthesis/gi, ')')
-      .replace(/semicolon/gi, ';')
-      .replace(/new line/gi, '\n')
-      .replace(/curly brackets/gi, '{}')
-      .replace(/square brackets/gi, '[]')
-      .replace(/less than/gi, '<')
-      .replace(/greater than/gi, '>')
-      .replace(/greater than or equal/gi, '>=')
-      .replace(/less than or equal/gi, '<=')
-      .replace(/comma/gi, ',')
-      .replace(/dot/gi, '.')
-      .replace(/double quotes/gi, '"')
-      .replace(/single quote/gi, "'")
-      .replace(/backtick/gi, "`")
-      .replace(/vertical bar/gi, '|');
+    if(!parsed.text) return;
+    setStatus('Improving transcription: ' + parsed.text);
+    // Attempt to correct transcription errors
+    const result = await getCompletion('Correct the command or if it does not seem like one of the available commands, fix the transcription so that it is a valid source code fragment.', parsed.text, `You are a helpful assistant. Your task is to correct any discrepancies in the transcribed voice command or source code transcription. Make sure that the following commands (in regular expresion form) are spelled correctly: ${Object.keys(commands).join(', ')}. Only add necessary punctuation such as periods, commas, and capitalization, and use only the context provided. Correct any source code transcription as if it were in ${language}. Do not return anything except the fixed command or the fixed source code fragment.`);
+    const fixedCommand = result.choices[0].message.content;
+    console.log(fixedCommand);
+    const wasCommand2 = await executeCommand({text: fixedCommand});
+    if(!wasCommand2) {
+      let codeish = fixedCommand
+        .replace(/times/gi, '*')
+        .replace(/divided by/gi, '/')
+        .replace(/plus/gi, '+')
+        .replace(/minus/gi, '-')
+        .replace(/equals/gi, '=')
+        .replace(/strict equals/gi, '===')
+        .replace(/strict not equals/gi, '!==')
+        .replace(/not equals/gi, '!=')
+        .replace(/open parenthesis/gi, '(')
+        .replace(/close parenthesis/gi, ')')
+        .replace(/semicolon/gi, ';')
+        .replace(/new line/gi, '\n')
+        .replace(/curly brackets/gi, '{}')
+        .replace(/square brackets/gi, '[]')
+        .replace(/less than/gi, '<')
+        .replace(/greater than/gi, '>')
+        .replace(/greater than or equal/gi, '>=')
+        .replace(/less than or equal/gi, '<=')
+        .replace(/comma/gi, ',')
+        .replace(/dot/gi, '.')
+        .replace(/double quotes/gi, '"')
+        .replace(/single quote/gi, "'")
+        .replace(/backtick/gi, "`")
+        .replace(/vertical bar/gi, '|');
 
-    if(codeish.endsWith('.'))
-      codeish = codeish.slice(0, -1);
+      if(codeish.endsWith('.'))
+        codeish = codeish.slice(0, -1);
 
-    lastTranscription = codeish;
-    insertTextAtCursor(textarea, codeish);
+      lastTranscription = codeish;
+      insertTextAtCursor(textarea, codeish);
+    }
   }
 
   setStatus(pauseRecording ? 'Press Escape to continue recording' : `Ready (${language})`);
