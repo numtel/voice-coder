@@ -162,8 +162,12 @@ console.log(direction, prompt);
             language = prompt;
             localStorage.setItem('LANGUAGE', prompt);
         } else if(/^banana[\s\W]*$/i.test(parsed.text)) {
-            undo();
-            await fullRewrite(lastTranscription);
+            undo();undo();
+            if(textarea.selectionStart !== textarea.selectionEnd) {
+                await selectionRewrite(lastTranscription);
+            } else {
+                await fullRewrite(lastTranscription);
+            }
         } else if(/^avocado[\s\W]*$/i.test(parsed.text)) {
             undo();
             await lineRewrite(lastTranscription);

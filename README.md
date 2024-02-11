@@ -30,7 +30,7 @@ Set programming language
 
 > Sam, write a function that calculates the fibonacci sequence.
 
-Ask same for a rewrite of your entire document or rewrite selection if there is one.
+Ask Sam (Altman) for a rewrite of your entire document or rewrite selection if there is one.
 
 > On this line, multiply the sequence variable times 3.
 
@@ -62,7 +62,7 @@ Transcript is typed into the document
 
 > banana
 
-Last transcription was actually meant for Sam to do full rewrite
+Last transcription was actually meant for Sam to do rewrite on selection/full document
 
 > avocado
 
