@@ -24,52 +24,23 @@ $ npm start
 
 Press `Escape` to begin recording and again to stop. Transcription will proceed automatically.
 
-> Language Javascript
-
-Set programming language
-
-> Sam, write a function that calculates the fibonacci sequence.
-
-Ask Sam (Altman) for a rewrite of your entire document or rewrite selection if there is one.
-
-> On this line, multiply the sequence variable times 3.
-
-Ask for a rewrite of the current line.
-
-> Down 12 lines. Up 7 lines.
-
-Up/down a number of lines. Some numbers cause non digit character responses. Avoid those.
-
-> Find next|previous <search term>
-
-Jump to the next instance of the search term
-
-> Select inside curly
-
-Selects the text inside the closest curly `{}` braces, can then ask Sam to rewrite that selection
-
-> Expand selection
-
-Expand selection to be full lines, useful after 'select inside curly' to get a full function/if statement/etc
-
-> Undo
-
-Undo the last voice command
-
-> Anything else
-
-Transcript is typed into the document
-
-> banana
-
-Last transcription was actually meant for Sam to do rewrite on selection/full document
-
-> avocado
-
-Last transcription was actually meant for a line rewrite
+| command                   | description                      |
+|---------------------------|----------------------------------|
+| Language Javascript       | Set programming language, can be anything since it's just part of the prompt.         |
+| Sam, write a function that calculates the fibonacci sequence. | Request a rewrite from Sam (Altman) for the entire document or selection |
+| On this line, multiply the sequence variable times 3. | Request a rewrite for the current line |
+| Down 12 lines. Up 7 lines. | Adjust the cursor position |
+| Find next/previous (search term) | Jump to the next instance of the search term |
+| Select inside (curly/parentheses/single quotes/double quotes/carrots) | Select text within specific delimiters `{}`, `()`, `''`, `""`, `<>` |
+| Expand selection | Expand the selected text to fill the full lines of any existing selection, or the current line if no selection |
+| cut selection/copy selection/grapefruit | Perform internal clipboard operations (grapefruit is picked up easier than paste) |
+| beginning/end of selection | Move the cursor position |
+| Undo | Revert the last action |
+| banana | Replay the last transcription as a prompt to rewrite the selection or entire document |
+| avocado | Replay the last transcription as a prompt to rewrite the current line |
+| *anything else* | Transcribed with some helpers to convert words to programming characters |
 
 ### Undo/Redo
 
-Press F1 to undo your last voice command
-
-Press F2 to redo
+* Press `F1` to undo your last voice command
+* Press `F2` to redo

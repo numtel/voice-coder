@@ -20,6 +20,7 @@ let volumeThreshold = 0.02;
 let volume = 0;
 const silenceDuration = 1500;
 let pauseRecording = true;
+let clipboard = '';
 
 const textarea = document.getElementById('text');
 const soundlevel = document.getElementById('soundlevel');
@@ -140,7 +141,7 @@ startRecording(async function(audioBlob) {
     } else {
       await fullRewrite(prompt);
     }
-  } else if(parsed.text.toLowerCase().startsWith('on this line,')) {
+  } else if(parsed.text.toLowerCase().startsWith('on this line')) {
     const prompt = parsed.text.slice(13);
     await lineRewrite(prompt);
   } else if(parsed.text.match(/^find (next|previous)/i)) {
@@ -149,10 +150,35 @@ startRecording(async function(audioBlob) {
     const prompt = parsed.text.slice(parsed.text.toLowerCase().indexOf(prefix) + prefix.length).replace(/[^a-zA-Z0-9_-]/g, '').trim();
     console.log(direction, prompt);
     findNext(textarea, prompt, direction);
+  } else if(parsed.text.toLowerCase().startsWith('copy selection')) {
+    clipboard = textarea.value.substring(
+      textarea.selectionStart,
+      textarea.selectionEnd
+    );
+  } else if(parsed.text.toLowerCase().startsWith('cut selection')) {
+    clipboard = textarea.value.substring(
+      textarea.selectionStart,
+      textarea.selectionEnd
+    );
+    deleteSelectedText(textarea);
+  } else if(parsed.text.toLowerCase().startsWith('grapefruit')) {
+    insertOrReplaceText(textarea, clipboard);
+  } else if(parsed.text.toLowerCase().startsWith('beginning of selection')) {
+    textarea.selectionEnd = textarea.selectionStart;
+  } else if(parsed.text.toLowerCase().startsWith('end of selection')) {
+    textarea.selectionStart = textarea.selectionEnd;
   } else if(parsed.text.toLowerCase().startsWith('undo')) {
     undo();undo();
   } else if(parsed.text.toLowerCase().startsWith('select inside curly')) {
     selectInsideBrackets(textarea, ['{','}']);
+  } else if(parsed.text.toLowerCase().startsWith('select inside parentheses')) {
+    selectInsideBrackets(textarea, ['(',')']);
+  } else if(parsed.text.toLowerCase().startsWith('select inside single quotes')) {
+    selectInsideBrackets(textarea, ['\'', '\'']);
+  } else if(parsed.text.toLowerCase().startsWith('select inside double quotes')) {
+    selectInsideBrackets(textarea, ['"', '"']);
+  } else if(parsed.text.toLowerCase().startsWith('select inside carrots')) {
+    selectInsideBrackets(textarea, ['<', '>']);
   } else if(parsed.text.toLowerCase().startsWith('expand selection')) {
     expandSelection(textarea);
   } else if(parsed.text.toLowerCase().match(/^(up|down) (\d+) lines/)) {
