@@ -174,9 +174,9 @@ startRecording(async function(audioBlob) {
   } else if(parsed.text.toLowerCase().startsWith('select inside parentheses')) {
     selectInsideBrackets(textarea, ['(',')']);
   } else if(parsed.text.toLowerCase().startsWith('select inside single quotes')) {
-    selectInsideBrackets(textarea, ['\'', '\'']);
+    selectInsideBrackets(textarea, ["'"]);
   } else if(parsed.text.toLowerCase().startsWith('select inside double quotes')) {
-    selectInsideBrackets(textarea, ['"', '"']);
+    selectInsideBrackets(textarea, ['"']);
   } else if(parsed.text.toLowerCase().startsWith('select inside carrots')) {
     selectInsideBrackets(textarea, ['<', '>']);
   } else if(parsed.text.toLowerCase().startsWith('expand selection')) {
