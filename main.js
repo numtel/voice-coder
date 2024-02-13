@@ -26,7 +26,7 @@ const textarea = document.getElementById('text');
 const soundlevel = document.getElementById('soundlevel');
 
 function setThreshold() {
-  volumeThreshold = soundlevel.high = volume;
+  volumeThreshold = soundlevel.high = averageVolume.getAverage();
 }
 
 function toggleRecording() {
@@ -45,8 +45,6 @@ document.addEventListener('keydown', (event) => {
     undo();
   } else if(event.key === 'F2') {
     redo();
-  } else if(event.key === 'ArrowUp') {
-    console.log("This application is written by voice at a high level.");
   }
 }, false);
 
@@ -94,6 +92,7 @@ async function lineRewrite(prompt) {
 function setStatus(value) {
   const statusEl = document.getElementById('status');
   statusEl.innerHTML = value;
+  statusEl.className = pauseRecording ? 'off' : 'on';
 }
 setStatus(`Press Escape to Begin Recording (${language})`);
 
@@ -155,9 +154,9 @@ const commands = {
   'expand selection': async (parsed) => {
     expandSelection(textarea);
   },
-  '(up|down) (\d+) lines': async (parsed) => {
-    const direction = parsed.text.toLowerCase().match(/^(up|down) (\d+) lines/)[1];
-    const linesToMove = parseInt(parsed.text.toLowerCase().match(/^(up|down) (\d+) lines/)[2]);
+  'move (up|down) (\\d+) lines': async (parsed) => {
+    const direction = parsed.text.toLowerCase().match(/^move (up|down) (\d+) lines/)[1];
+    const linesToMove = parseInt(parsed.text.toLowerCase().match(/^move (up|down) (\d+) lines/)[2]);
     moveCursor(textarea, direction, linesToMove);
   },
   'language': async (parsed) => {
@@ -225,16 +224,16 @@ startRecording(async function(audioBlob) {
   nextValue.splice(0, nextValue.length);
 
   // Do things with the text
-  console.log(parsed.text);
+  console.log('Raw text:', parsed.text);
   const wasCommand = await executeCommand(parsed);
 
   if(!wasCommand) {
     if(!parsed.text) return;
     setStatus('Improving transcription: ' + parsed.text);
     // Attempt to correct transcription errors
-    const result = await getCompletion('Correct the command or if it does not seem like one of the available commands, fix the transcription so that it is a valid source code fragment.', parsed.text, `You are a helpful assistant. Your task is to correct any discrepancies in the transcribed voice command or source code transcription. Make sure that the following commands (in regular expresion form) are spelled correctly: ${Object.keys(commands).join(', ')}. Only add necessary punctuation such as periods, commas, and capitalization, and use only the context provided. Correct any source code transcription as if it were in ${language}. Do not return anything except the fixed command or the fixed source code fragment.`);
+    const result = await getCompletion('Correct the command or if it does not seem like one of the available commands, fix the transcription so that it is a valid source code fragment.', parsed.text, `You are a helpful assistant. Your task is to correct any discrepancies in the transcribed voice command or source code transcription. Make sure that the following commands (in regular expresion form) are spelled correctly: ${Object.keys(commands).join(', ')}. The commands to move up and down a number of lines can require changing numbers spelled out into numerical digits. Only add necessary punctuation such as periods, commas, and capitalization, and use only the context provided. Correct any source code transcription as if it were in ${language}. Do not return anything except the fixed command or the fixed source code fragment.`);
     const fixedCommand = result.choices[0].message.content;
-    console.log(fixedCommand);
+    console.log('Improved text:', fixedCommand);
     const wasCommand2 = await executeCommand({text: fixedCommand});
     if(!wasCommand2) {
       let codeish = fixedCommand

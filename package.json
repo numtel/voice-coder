@@ -8,5 +8,8 @@
     "start": "node server.js"
   },
   "author": "numtel <ben@latenightsketches.com>",
-  "license": "MIT"
+  "license": "MIT",
+  "dependencies": {
+    "minimatch": "^9.0.3"
+  }
 }

@@ -7,13 +7,13 @@
     <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-    <button onclick="toggleRecording()">Toggle Recording</button>
     <meter id="soundlevel" value="0" min="0" high="0.02" max="0.05"></meter>
     <button onclick="setThreshold()">Set Threshold</button>
+    <button onclick="toggleRecording()">Toggle Recording</button>
     <input type="text" id="filename" placeholder="Enter filename to load"/>
     <button onclick="loadFile()">Load</button>
     <button onclick="saveFile()">Save</button>
-    <textarea id="text"></textarea><br/>
+    <textarea id="text" placeholder="Begin your document..."></textarea><br/>
     <div id="status">Press Escape to begin.</div>
     <script src="lib/textarea.js"></script>
     <script src="lib/completion.js"></script>

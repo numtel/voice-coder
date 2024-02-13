@@ -2,6 +2,7 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const url = require('url');
+const {minimatch} = require('minimatch');
 
 const hostname = '127.0.0.1';
 const port = 3000;
@@ -10,10 +11,7 @@ const allowed = {
   '/': {file: 'index.html', mime: 'text/html'},
   '/main.js': {mime: 'application/javascript'},
   '/style.css': {mime: 'text/css'},
-  '/lib/textarea.js': {mime: 'application/javascript'},
-  '/lib/completion.js': {mime: 'application/javascript'},
-  '/lib/recorder.js': {mime: 'application/javascript'},
-  '/lib/fileserver.js': {mime: 'application/javascript'},
+  '/lib/*.js': {mime: 'application/javascript'},
 };
 
 const server = http.createServer((req, res) => {
@@ -21,15 +19,16 @@ const server = http.createServer((req, res) => {
   const pathname = parsedUrl.pathname;
 
   // Serve frontend files
-  if (pathname in allowed) {
-    const indexPath = path.join(__dirname, allowed[pathname].file || pathname.slice(1));
+  if (Object.keys(allowed).some(pattern => minimatch(pathname, pattern))) {
+    const matchedPattern = Object.keys(allowed).find(pattern => minimatch(pathname, pattern));
+    const indexPath = path.join(__dirname, allowed[matchedPattern].file || pathname.slice(1));
     fs.readFile(indexPath, (err, data) => {
       if (err) {
         res.statusCode = 500;
         res.end('Error loading the index page');
         return;
       }
-      res.setHeader('Content-Type', allowed[pathname].mime || 'text/plain');
+      res.setHeader('Content-Type', allowed[matchedPattern].mime || 'text/plain');
       res.end(data);
     });
     return;
